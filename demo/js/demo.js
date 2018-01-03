@@ -14,7 +14,7 @@ window.onload = function () {
         }
     })
     $("#login").click(loginClick);
-    $("#register").click(registerClick);
+    //$("#register").click(registerClick);
     $("#logout").click(logoutClick);
     $("#getRoasters").click(getRoasters);
     /**
@@ -63,7 +63,8 @@ window.onload = function () {
 
 // 界面样式全局变量
 var mainPage = ".main";//主界面
-var nikeName = ".nikename";//用户昵称
+var doctorNameDom = ".doctorname";//医生姓名
+var doctorHeaderImgDom = ".doctor-header-img";//医生头像
 var loginPage = "#loginPage";//登录界面
 var registerPage = "#registerPage";
 var friendList = "#friend";//好友列表
@@ -78,7 +79,7 @@ var chatCover = ".chat-cover";//聊天封面
 /*基本功能*/
 var conn = new WebIM.connection({
     https: WebIM.config.https,
-    // https: typeof WebIM.config.https === 'boolean' ? WebIM.config.https : location.protocol === 'https:',
+    https: typeof WebIM.config.https === 'boolean' ? WebIM.config.https : location.protocol === 'https:',
     url: WebIM.config.xmppURL,
     apiUrl: WebIM.config.apiURL,
     isAutoLogin: WebIM.config.isAutoLogin,
@@ -252,9 +253,10 @@ conn.listen({
 
 /*回调函数实现的功能*/
 var handleOpen = function (conn) {
-    //从连接中获取到当前的登录人注册帐号名
-    curUserId = conn.context.userId;
-    $(nikeName).text(curUserId);
+    if (doctorImgUrl != undefined) {
+        $(doctorHeaderImgDom).attr("src", doctorImgUrl);
+    }
+    $(doctorNameDom).text(doctorName);
     $(loginPage).addClass("hide");
     $(mainPage).removeClass("hide");
     getRoasters();
@@ -475,7 +477,7 @@ var handleTextMessage = function (message) {
         'class': 'otherMsg'
     });
     $('<img>').attr({
-        'src': './demo/img/bb.jpg',
+        'src': './demo/img/ic_patient.jpg',
         'width': '40px',
         'height': '40px',
         "id": 'limg'
@@ -528,6 +530,14 @@ var register = function (username, password, nickname) {
     };
     conn.registerUser(options);
 };// 注册
+
+//医生信息（筷子后台）
+var doctorId;
+var doctorImgUrl;
+var doctorName;
+var doctorToken;
+var doctorImAccount;
+
 var login = function (user, pwd) {
     $.post("http://61.128.195.29:8086/api/DoctorApp/Login",
         {
@@ -536,17 +546,28 @@ var login = function (user, pwd) {
             "pwd": pwd,
             "loginType": "2"
         }, function (data) {
-            alert("Data Loaded: " + data.data.phone);
+            if (data.code == 100) {
+                doctorId = data.data.doctor_id;
+                doctorImgUrl = data.data.img_url;
+                doctorName = data.data.name;
+                doctorToken = data.data.token;
+                doctorImAccount = data.data.im_account;
+                var options = {
+                    apiUrl: WebIM.config.apiURL,
+                    user: doctorImAccount,
+                    pwd: '1234567',
+                    appKey: WebIM.config.appkey,
+                    success: function () {
+
+                    },
+                    error: function () {
+                        console.log("环信登录失败！");
+                    }
+                };
+                conn.open(options);
+            }
         }, "json");
 
-
-    var options = {
-        apiUrl: WebIM.config.apiURL,
-        user: user,
-        pwd: pwd,
-        appKey: WebIM.config.appkey
-    };
-    conn.open(options);
 };// 登录
 var logout = function () {
     conn.close();
@@ -943,7 +964,7 @@ var sendClick = function () {
             'class': 'myMsg'
         });
         $('<img>').attr({
-            'src': './demo/img/ic_doc',
+            'src': './demo/img/ic_doctor.png',
             'width': '40px',
             'height': '40px',
             'id': 'rimg'
@@ -1028,13 +1049,3 @@ var setMainMargin = function () {
         }
     });
 };//动态设置聊天窗口的margin
-
-
-
-
-
-
-
-
-
-

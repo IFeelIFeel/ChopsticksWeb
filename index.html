@@ -22,19 +22,17 @@
     <!-- webSdk -->
     <script src="./sdk/websdk-1.4.12.js"></script>
     <!-- demo -->
-    <script src="demo/js/baseEasemob.js"></script>
     <script src="demo/js/demo.js"></script>
     <link rel="stylesheet" href="demo/css/demo.css">
 </head>
 <body>
-
 <!-- 登录页面 -->
 <div class="fpage center " id="loginPage">
     <h2>登录</h2>
     <input type="text" id="user" value="qcy" placeholder="用户名"><br>
     <input type="password" id="pwd" value="123456" placeholder="密码"><br>
     <button id="login">登录</button>
-    <h2> </h2>
+    <h2></h2>
 </div>
 <!-- 主界面 -->
 <div class="main hide">
@@ -42,9 +40,10 @@
         <!-- 聊天列表 -->
         <div class="chat-list">
             <div class="header">
-                <div class="head-portrait"><img src="./demo/img/ic_doctor.png" alt="" width="40px" height="40px"></div>
+                <div class="head-portrait"><img class="doctor-header-img" src="./demo/img/ic_doctor.png" alt=""
+                                                width="40px" height="40px"></div>
                 <div class="info">
-                    <span class="nikename"></span>
+                    <span class="doctorname"></span>
                     <a href="JavaScript:;" class="list-menu">
                         <ul class="list-group hide">
                             <li class="list-group-item" data-toggle="modal" data-target="#addFrendModal">添加好友</li>
