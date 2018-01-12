@@ -16,7 +16,7 @@ window.onload = function () {
     $("#login").click(loginClick);
     //$("#register").click(registerClick);
     $("#logout").click(logoutClick);
-    $("#getRoasters").click(getRoasters);
+    $("#getRoasters").click(getTheCrowd());
     /**
      * 登录div
      */
@@ -50,7 +50,7 @@ window.onload = function () {
     //     divHide(this);
     // });
     $("#send").click(sendClick);
-    $(".chat-box-hd a").click(chatMenuClick)
+    //$(".chat-box-hd a").click(chatMenuClick)
     $(".list-menu").click(listMenuClick);
     $("#addFriend").click(addFriendsClick);
     $("#createGroup").click(createGroupsClick);
@@ -62,9 +62,9 @@ window.onload = function () {
 };
 
 // 界面样式全局变量
-var mainPage = ".main";//主界面
 var doctorNameDom = ".doctorname";//医生姓名
 var doctorHeaderImgDom = ".doctor-header-img";//医生头像
+var mainPage = ".main";//主界面
 var loginPage = "#loginPage";//登录界面
 var registerPage = "#registerPage";
 var friendList = "#friend";//好友列表
@@ -74,7 +74,6 @@ var chatObj = ".chat-box-hd span";//聊天对象名字
 var textMsg = "#text";//需要发送的消息
 var chatBox = ".chat-box";//聊天盒子
 var chatCover = ".chat-cover";//聊天封面
-// var fileInput = "file";
 
 /*基本功能*/
 var conn = new WebIM.connection({
@@ -105,17 +104,27 @@ conn.listen({
         handleTextMessage(message);
     }, //收到文本消息
     onEmojiMessage: function (message) {
+
         // 当为WebIM添加了Emoji属性后，若发送的消息含WebIM.Emoji里特定的字符串，connection就会自动将
         // 这些字符串和其它文字按顺序组合成一个数组，每一个数组元素的结构为{type: 'emoji(或者txt)', data:''}
         // 当type='emoji'时，data表示表情图像的路径，当type='txt'时，data表示文本消息
-        console.log('表情');
-        var data = message.data;
-        for (var i = 0, l = data.length; i < l; i++) {
-            console.log(data[i]);
-        }
+        handleTextEmojMessage(message);
+        /*var data = message.data;
+         for (var i = 0, l = data.length; i < l; i++) {
+
+
+         }
+         WebIM.utils.parseEmoji(message)*/
+        console.log("表情");
     }, //收到表情消息
     onPictureMessage: function (message) {
         console.log('图片');
+        var crowdItem = new crowd();
+        for (var i = 0; i < crowds.length; i++) {
+            if (message.from == crowds[i].imAccount) {
+                crowdItem = crowds[i];
+            }
+        }
         var options = {
             url: message.url
         };
@@ -134,19 +143,23 @@ conn.listen({
             var chatdiv = $('<div>').attr({
                 'class': 'otherMsg'
             });
+            var chatContentDiv = $('<div>').attr({
+                'class': "otherMsgContent"
+            });
             $('<img>').attr({
-                'src': './demo/img/bb.jpg',
+                'src': crowdItem.img,
                 'width': '40px',
                 'height': '40px',
                 'id': 'limg'
             }).appendTo(chatdiv);
             console.log(message);
-            $('<h4>').text(message.from).appendTo(chatdiv);
+            $('<h4>').text(crowdItem.name).appendTo(chatdiv);
             var span = $('<span>').appendTo(chatdiv);
             $('<img>').attr({
                 'src': message.url,
                 'width': '300px',
-            }).appendTo(span);
+            }).appendTo(chatContentDiv);
+            chatContentDiv.appendTo(chatdiv);
             $('#' + msgObjDivId).append(chatdiv);
             setTimeout(function () {
                 scrollBottom('#' + msgObjDivId);
@@ -259,7 +272,7 @@ var handleOpen = function (conn) {
     $(doctorNameDom).text(doctorName);
     $(loginPage).addClass("hide");
     $(mainPage).removeClass("hide");
-    getRoasters();
+    getTheCrowd();
     getGroups();
 };// 处理连接时
 var handlePresence = function (message) {
@@ -341,6 +354,50 @@ var handlePresence = function (message) {
             break;
     }
 } //处理“广播”或“发布-订阅”消息，如联系人订阅请求、处理群组、聊天室被踢解散等消息
+
+
+//用户数组
+var crowds = [];
+//用户实体类
+function crowd() {
+    var empi;
+    var name;
+    var img;
+    var imAccount;
+}
+/**
+ * 获取所属人群
+ */
+var getTheCrowd = function () {
+
+
+    $.post("http://61.128.195.29:8086/api/DoctorApp/TheCrowd",
+        {
+            "app_access_key": "BD858BD9D3E1E2488A3D0CC5481057C4",
+            "token": doctorToken,
+            "org_id": doctorOrgId,
+            "team_id": doctorTeamId,
+            "type": "",
+            "label_id": "",
+            "doctor_id": doctorId
+        }
+        , function (data) {
+            if (data.code == 100) {
+                for (var o in data.data.crowd_item) {
+                    var item = new crowd();
+                    item.empi = data.data.crowd_item[o].empi;
+                    item.name = data.data.crowd_item[o].name;
+                    item.img = data.data.crowd_item[o].img;
+                    item.imAccount = data.data.crowd_item[o].im_account;
+                    crowds.push(item);
+                }
+                buildListRostersDiv(crowds);
+                buildChatRostersDiv(crowds);
+
+            }
+        }, "json");
+
+}
 var getRoasters = function () {
     var option = {
         success: function (roster) {
@@ -364,12 +421,16 @@ var getRoasters = function () {
 
                 // both为双方互为好友，要显示的联系人,from我是对方的单向好友
                 if (ros.subscription == 'both' || ros.subscription == 'from') {
-                    bothRoster.push(ros);
+                    //bothRoster.push(ros);
                 } else if (ros.subscription == 'to') {
                     //to表明了联系人是我的单向好友
                     toRoster.push(ros);
+                } else if (ros.subscription == 'none') {
+                    bothRoster.push(ros);
                 }
             }
+            //console.log(bothRoster);
+            //console.log(toRoster);
             if (bothRoster.length > 0) {
                 buildListRostersDiv(bothRoster); //联系人列表页面处理
                 buildChatRostersDiv(bothRoster);
@@ -392,29 +453,30 @@ var getGroups = function () {
     };
     conn.listRooms(option);
 };// 显示群组（需要插入头像）
-var buildListRostersDiv = function (roster) {
+var buildListRostersDiv = function (crowds) {
     // 建立缓存，存好友，用处是下面判断是一个好友则跳出当前循环
     var cache = {};
-    for (i = 0; i < roster.length; i++) {
-        if (!(roster[i].subscription == 'both' || roster[i].subscription == 'from')) {
-            continue;
-        }
-        var userName = roster[i].name;
-        var id = "ListRosters-" + userName;
-        var displayname = userName;//应该传入昵称
+    for (var i in crowds) {
+        /*if (!(roster[i].subscription == 'both' || roster[i].subscription == 'from')) {
+         continue;
+         }*/
+        var userName = crowds[i].imAccount;
+        var id = "ListRosters-" + crowds[i].imAccount;
+        var displayname = crowds[i].name;//应该传入昵称
         var type = "chat";
         var obj = friendList;
-        var imgSrc = "./demo/img/ic_patient.png";
+        var imgSrc = crowds[i].img;
         if (userName in cache) {
             continue;
         }
         cache[userName] = true;
         appendListDiv(id, userName, displayname, type, obj, imgSrc);
+
     }
 };// 构建好友列表
-var buildChatRostersDiv = function (roster) {
-    for (i = 0; i < roster.length; i++) {
-        var id = 'ChatRosters-' + roster[i].name;
+var buildChatRostersDiv = function (crowds) {
+    for (i = 0; i < crowds.length; i++) {
+        var id = 'ChatRosters-' + crowds[i].imAccount;
         appendChatDiv(id, chatBoxContent);
     }
 }// 构建好友聊天盒子
@@ -463,6 +525,12 @@ var appendChatDiv = function (id, obj) {
     $(obj).append(chatdiv);
 };//动态插入聊天盒子
 var handleTextMessage = function (message) {
+    var crowdItem = new crowd();
+    for (var i = 0; i < crowds.length; i++) {
+        if (message.from == crowds[i].imAccount) {
+            crowdItem = crowds[i];
+        }
+    }
     var msgObjDivId = null;
     var listObjIId = null;
     if (message.type == "chat") {
@@ -476,15 +544,20 @@ var handleTextMessage = function (message) {
     var chatdiv = $('<div>').attr({
         'class': 'otherMsg'
     });
+    var chatContentDiv = $('<div>').attr({
+        'class': "otherMsgContent"
+    });
     $('<img>').attr({
-        'src': './demo/img/ic_patient.jpg',
+        'src': crowdItem.img,
         'width': '40px',
         'height': '40px',
         "id": 'limg'
     }).appendTo(chatdiv);
-    console.log(message);
-    $('<h4>').text(message.from).appendTo(chatdiv);
-    $('<span>').html(message.data).appendTo(chatdiv);
+    $('<h4>').text(crowdItem.name).appendTo(chatdiv);
+
+    $('<span>').html(message.data.replace(/\n/g, "</br>")).appendTo(chatContentDiv);
+    chatContentDiv.appendTo(chatdiv);
+
     $('#' + msgObjDivId).append(chatdiv);
     scrollBottom('#' + msgObjDivId);
     // 小红点添加
@@ -504,6 +577,74 @@ var handleTextMessage = function (message) {
     }
     // console.log(message);
 };//处理接受文字消息
+
+var handleTextEmojMessage = function (message) {
+    var crowdItem = new crowd();
+    for (var i = 0; i < crowds.length; i++) {
+        if (message.from == crowds[i].imAccount) {
+            crowdItem = crowds[i];
+        }
+    }
+    var msgObjDivId = null;
+    var listObjIId = null;
+    if (message.type == "chat") {
+        msgObjDivId = "ChatRosters-" + message.from;
+        listObjIId = "ListRosters-" + message.from;
+    } else if (message.type == "groupchat") {
+        msgObjDivId = "ChatGroups-" + message.to;
+        listObjIId = "ListGroups-" + message.to;
+    }
+    // 把接受的消息添加进消息盒子中
+    var chatdiv = $('<div>').attr({
+        'class': 'otherMsg'
+    });
+    var chatContentDiv = $('<div>').attr({
+        'class': "otherMsgContent"
+    });
+    $('<img>').attr({
+        'src': crowdItem.img,
+        'width': '40px',
+        'height': '40px',
+        "id": 'limg'
+    }).appendTo(chatdiv);
+    $('<h4>').text(crowdItem.name).appendTo(chatdiv);
+
+    //对文字和表情消息进行处理
+    for (var o in message.data) {
+        var item = message.data[o];
+        if (item.type == "txt") {
+            $('<span>').html(item.data.replace(/\n/g, "</br>")).appendTo(chatContentDiv);
+        } else if (item.type == "emoji") {
+            $('<img>')
+                .attr(
+                    {
+                        "src": WebIM.utils.parseEmoji(item.data),
+                        "class": "otherMsgEmoji"
+                    }).appendTo(chatContentDiv);
+        }
+    }
+    chatContentDiv.appendTo(chatdiv);
+
+
+    $('#' + msgObjDivId).append(chatdiv);
+    scrollBottom('#' + msgObjDivId);
+    // 小红点添加
+    if (curAcceptMsgObjDivId == null || msgObjDivId != curAcceptMsgObjDivId) {
+        if (msgObjDivId in redPCache) {
+            var redIVal = $("#" + listObjIId + " i").text();
+            redIVal = parseInt(redIVal) + 1;
+            $("#" + listObjIId + " i").text(redIVal);
+        } else {
+            var redI = $('<i>').attr({
+                "id": "redP-" + msgObjDivId
+            }).text(1);
+            $("#" + listObjIId).append(redI);
+            redPCache[msgObjDivId] = true;
+        }
+        ;
+    }
+}//处理文字和表情消息
+
 
 /*基本API*/
 var register = function (username, password, nickname) {
@@ -537,6 +678,8 @@ var doctorImgUrl;
 var doctorName;
 var doctorToken;
 var doctorImAccount;
+var doctorOrgId;
+var doctorTeamId;
 
 var login = function (user, pwd) {
     $.post("http://61.128.195.29:8086/api/DoctorApp/Login",
@@ -545,13 +688,16 @@ var login = function (user, pwd) {
             "account": user,
             "pwd": pwd,
             "loginType": "2"
-        }, function (data) {
+        },
+        function (data) {
             if (data.code == 100) {
                 doctorId = data.data.doctor_id;
                 doctorImgUrl = data.data.img_url;
                 doctorName = data.data.name;
                 doctorToken = data.data.token;
                 doctorImAccount = data.data.im_account;
+                doctorOrgId = data.data.org_id;
+                doctorTeamId = data.data.team_id;
                 var options = {
                     apiUrl: WebIM.config.apiURL,
                     user: doctorImAccount,
@@ -576,6 +722,7 @@ var sendPrivateText = function (text, obj) {
     var id = conn.getUniqueId();
     var msg = new WebIM.message('txt', id);
     msg.set({
+        //from: doctorImAccount,
         msg: text, // 消息内容
         to: obj, // 接收消息对象
         roomType: false,
@@ -727,12 +874,11 @@ var sendGroupPicture = function (obj) {
     msg.setGroup('groupchat');
     conn.send(msg.body);
 }//群聊发送图片
-var addFriends = function (name, msg) {
-    if (name != null && name != "") {
+var addFriends = function (imAccount) {
+    if (imAccount != null && imAccount != "") {
         conn.subscribe({
-            to: name,
-            // Demo里面接收方没有展现出来这个message，在status字段里面
-            message: msg
+            to: imAccount,
+            message: " "
         });
     }
 };// 添加好友
@@ -955,7 +1101,12 @@ var sendClick = function () {
     var html = $("#text").html();
     if (html != null && html != "") {
         if (curAcceptMsgObjType == "chat") {
-            sendPrivateText(html, curAcceptMsgObj);
+            //通过正则表达式替换HTML标签，输出替换后的字符串
+            var msgHtml = replaceLabelAndEmoji(html);
+            //var regx = /<[^>]*>|<\/[^>]*>/gm;
+            //var msgHtml = html.replace(/<div>/g, "\n").replace(regx, "");
+            //msgHtml.replace(/</div>/,"");
+            sendPrivateText(msgHtml, curAcceptMsgObj);
         } else if (curAcceptMsgObjType == "groupchat") {
             sendGroupText(html, curAcceptMsgObj);
         }
@@ -964,7 +1115,7 @@ var sendClick = function () {
             'class': 'myMsg'
         });
         $('<img>').attr({
-            'src': './demo/img/ic_doctor.png',
+            'src': doctorImgUrl,
             'width': '40px',
             'height': '40px',
             'id': 'rimg'
@@ -977,16 +1128,27 @@ var sendClick = function () {
         $(textMsg).text("");
     }
 };// 点击发送按钮处理的事件
+var replaceLabelAndEmoji = function (html) {
+    var msgHtml = html;
+    for (var name in WebIM.Emoji.map) {
+        var path = WebIM.Emoji.path + WebIM.Emoji.map[name];
+        var EmojiImglabel = '<img src="' + path + '">';
+        //var regx  = new RegExp(EmojiImglabel,"g");
+        msgHtml = msgHtml.replace(new RegExp(EmojiImglabel, 'gm'), name);
+    }
+    var regx = /<[^>]*>|<\/[^>]*>/gm;
+    msgHtml = msgHtml.replace(/<div>/g, "\n").replace(regx, "");
+    return msgHtml;
+};//替换输入框div中的标签<></>和emoji表情
 var chooseFaceClick = function (li) {
 
     var a = $(li).html();
     // console.log(a);
     var text0 = $(li).attr('key');
-    var text1 = $("#text").text();
+    //var text1 = $("#text").text();
     // $("#text").text(text1+text0+a);
     $("#text").append(a);
     var b = WebIM.utils.parseEmoji(text0);
-    console.log(b);
 };//选择表情事件
 
 var scrollBottom = function (obj) {
